@@ -1,0 +1,13 @@
+# Model files
+*.pb
+
+# Video files
+videos/
+final_videos/
+
+# Python
+__pycache__/
+*.pyc
+
+
+.DS_Store
