@@ -1,9 +1,28 @@
 # normalizeData
 
-Normalizes videos to 60fps and 720p resolution. Videos below 720p are upscaled, above 720p are downscaled.
+Normalizes videos to 60fps and 1280x720 resolution. Videos are scaled to exactly 1280x720 regardless of original size.
 
-To run pipeline.py locally:
+I suggest you run on the Google Colab as it will be faster.
+Running on Google Colab (colab_pipeline.ipynb)
 
+Before opening Colab:
+1. Upload all your .mp4 files to a folder called "AppDevInputVids" in your Google Drive
+2. In your Google Drive have a folder called "AppDevOutputVids"
+3. You can change the folder names or the input path and output path at cell 4 in the ipybn file. 
+
+In Colab:
+1. Go to https://colab.research.google.com
+2. Click File → Upload notebook → upload colab_pipeline.ipynb
+3. Run Cell 1: installs ffmpeg
+4. Run Cell 2: upload pipeline.py from your computer
+5. Run Cell 3: mounts Google Drive (will ask you to authorize)
+6. Run Cell 4: processes all videos - reads from MyDrive/AppDevInputVids/, writes to MyDrive/AppDevOutputVids/
+
+Results are saved directly to your Google Drive — no downloading needed.
+If your Drive folder has a different name, edit VIDEOS_DIR in Cell 3.
+
+
+Also to run pipeline.py locally:
 One-time setup:
 brew install ffmpeg
 
@@ -12,10 +31,4 @@ Create a folder named videos and put your .mp4 files inside it.
 Every run:
 1. Put your mp4 files in the videos/ folder
 2. Run python pipeline.py
-3. Collect results from final_videos/
-
-Running on Google Colab (colab_pipeline.ipynb)
-1. Go to https://colab.research.google.com
-2. Click File → Upload notebook
-3. Upload colab_pipeline.ipynb
-4. Run cells top to bottom: install ffmpeg, upload pipeline.py, upload videos, run pipeline, download results
+3. Collect results from final_videos/. This will be created when you run the file.
