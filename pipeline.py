@@ -6,17 +6,12 @@ import subprocess
 import tempfile
 import time
 
-import cv2
-from cv2 import dnn_superres
 
-
-def check_dependencies(model_path):
+def check_dependencies():
     if not shutil.which('ffmpeg'):
         raise RuntimeError("ffmpeg not found. Install with: brew install ffmpeg")
     if not shutil.which('ffprobe'):
         raise RuntimeError("ffprobe not found. Install with: brew install ffmpeg")
-    if not os.path.isfile(model_path):
-        raise RuntimeError(f"EDSR model not found at '{model_path}'. Download EDSR_x4.pb and place it in the project root, or pass --model <path>.")
 
 
 def get_fps(video_path):
@@ -54,39 +49,28 @@ def fps_normalize(src, dst, target_fps=60):
     print("done.")
 
 
-def upscale_video(src, dst, model_path, scale=4):
-    sr = dnn_superres.DnnSuperResImpl_create()
-    sr.readModel(model_path)
-    sr.setModel("edsr", scale)
-
-    cap = cv2.VideoCapture(src)
-    if not cap.isOpened():
-        raise RuntimeError(f"OpenCV could not open '{src}'.")
-
-    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    fps = cap.get(cv2.CAP_PROP_FPS)
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    out = cv2.VideoWriter(dst, fourcc, fps, (width * scale, height * scale))
-
-    print(f"  [SR]  Upscaling {width}x{height} -> {width*scale}x{height*scale} ...")
-    frame_count = 0
-    try:
-        while cap.isOpened():
-            ret, frame = cap.read()
-            if not ret:
-                break
-            out.write(sr.upsample(frame))
-            frame_count += 1
-            if frame_count % 100 == 0:
-                print(f"  [SR]  {frame_count} frames processed...", flush=True)
-    finally:
-        cap.release()
-        out.release()
-    print(f"  [SR]  Done. ({frame_count} frames)")
+def normalize_resolution(src, dst):
+    result = subprocess.run(
+        ['ffprobe', '-v', 'error', '-select_streams', 'v:0',
+         '-show_entries', 'stream=width,height', '-of', 'csv=p=0', src],
+        capture_output=True, text=True
+    )
+    width, height = map(int, result.stdout.strip().split(','))
+    print(f"  [RES] {width}x{height} -> 1280x720 ... ", end='', flush=True)
+    if width == 1280 and height == 720:
+        shutil.copy2(src, dst)
+        print("already at target, copied.")
+        return
+    subprocess.run([
+        'ffmpeg', '-y', '-i', src,
+        '-vf', 'scale=1280:720',
+        '-c:v', 'libx264', '-preset', 'medium', '-crf', '18',
+        '-an', dst
+    ], check=True, capture_output=True)
+    print("done.")
 
 
-def process_video(filename, videos_dir, tmp_dir, final_dir, model_path, target_fps, scale):
+def process_video(filename, videos_dir, tmp_dir, final_dir, target_fps):
     src = os.path.join(videos_dir, filename)
     tmp_dst = os.path.join(tmp_dir, filename)
     final_dst = os.path.join(final_dir, filename)
@@ -98,9 +82,9 @@ def process_video(filename, videos_dir, tmp_dir, final_dir, model_path, target_f
         t1 = time.time()
         print(f"  [FPS] completed in {t1-t0:.1f}s")
 
-        upscale_video(tmp_dst, final_dst, model_path, scale)
+        normalize_resolution(tmp_dst, final_dst)
         t2 = time.time()
-        print(f"  [SR]  completed in {t2-t1:.1f}s")
+        print(f"  [RES] completed in {t2-t1:.1f}s")
         print(f"[{filename}] Done. Total: {t2-t0:.1f}s -> {final_dst}")
         return filename, True, None
     except Exception as e:
@@ -109,17 +93,15 @@ def process_video(filename, videos_dir, tmp_dir, final_dir, model_path, target_f
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Normalize video FPS and upscale resolution.")
+    parser = argparse.ArgumentParser(description="Normalize video FPS to 60 and resolution to 720p.")
     parser.add_argument('--videos-dir', default='videos', help='Input directory (default: videos)')
     parser.add_argument('--output-dir', default='final_videos', help='Output directory (default: final_videos)')
-    parser.add_argument('--model', default='EDSR_x4.pb', help='Path to EDSR model file (default: EDSR_x4.pb)')
     parser.add_argument('--fps', type=int, default=60, help='Target FPS (default: 60)')
-    parser.add_argument('--scale', type=int, default=4, help='Super-resolution scale factor (default: 4)')
     parser.add_argument('--workers', type=int, default=1, help='Parallel workers (default: 1)')
     args = parser.parse_args()
 
     try:
-        check_dependencies(args.model)
+        check_dependencies()
     except RuntimeError as e:
         print(f"Error: {e}")
         return
@@ -147,7 +129,7 @@ def main():
             futures = {
                 executor.submit(
                     process_video, f, args.videos_dir, tmp_dir,
-                    args.output_dir, args.model, args.fps, args.scale
+                    args.output_dir, args.fps
                 ): f for f in mp4_files
             }
             for future in concurrent.futures.as_completed(futures):
