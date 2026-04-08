@@ -27,8 +27,8 @@ def process_video(filename, videos_dir, final_dir, target_fps):
             'ffmpeg', '-y', '-i', src,
             '-vf', f'scale=1280:720,fps={target_fps}',
             '-c:v', 'libx264',
-            '-preset', 'fast',   # KEY CHANGE (speed)
-            '-crf', '23',        # slightly lower quality but much faster
+            '-preset', 'fast',   
+            '-crf', '23',        
             '-an',
             dst
         ], check=True, capture_output=True)
@@ -43,8 +43,8 @@ def process_video(filename, videos_dir, final_dir, target_fps):
 
 def main():
     parser = argparse.ArgumentParser(description="Normalize video FPS to 60 and resolution to 720p.")
-    parser.add_argument('--videos-dir', default='videos', help='Input directory (default: videos)')
-    parser.add_argument('--output-dir', default='final_videos', help='Output directory (default: final_videos)')
+    parser.add_argument('--videos-dir', default='input_vids', help='Input directory (default: input_vids)')
+    parser.add_argument('--output-dir', default='final_vids', help='Output directory (default: final_vids)')
     parser.add_argument('--fps', type=int, default=60, help='Target FPS (default: 60)')
     parser.add_argument('--workers', type=int, default=1, help='Parallel workers (default: 1)')
     args = parser.parse_args()
@@ -55,19 +55,21 @@ def main():
         print(f"Error: {e}")
         return
 
+    os.makedirs(args.videos_dir, exist_ok=True)
     os.makedirs(args.output_dir, exist_ok=True)
 
-    try:
-        mp4_files = [f for f in os.listdir(args.videos_dir) if f.endswith('.mp4')]
-    except FileNotFoundError:
-        print(f"Error: Videos directory '{args.videos_dir}' not found.")
-        return
+    mp4_files = [f for f in os.listdir(args.videos_dir) if f.endswith('.mp4')]
+
+    print(f"Video Normalizer")
+    print(f"  Input:  {args.videos_dir}/")
+    print(f"  Output: {args.output_dir}/")
 
     if not mp4_files:
-        print(f"No .mp4 files found in '{args.videos_dir}'. Nothing to do.")
+        print(f"\nNo .mp4 files found in '{args.videos_dir}/'.")
+        print(f"Drop your videos there and run again.")
         return
 
-    print(f"Found {len(mp4_files)} video(s) to process.")
+    print(f"  Found:  {len(mp4_files)} video(s)")
 
     wall_start = time.time()
     results = []

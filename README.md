@@ -26,9 +26,8 @@ Also to run pipeline.py locally:
 One-time setup:
 brew install ffmpeg
 
-Create a folder named videos and put your .mp4 files inside it.
-
 Every run:
-1. Put your mp4 files in the videos/ folder
-2. Run python pipeline.py
-3. Collect results from final_videos/. This will be created when you run the file.
+1. Run python pipeline.py once — it will auto-create input_vids/ and final_vids/
+2. Put your .mp4 files in input_vids/
+3. Run python pipeline.py again
+4. Collect results from final_vids/
